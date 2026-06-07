@@ -96,16 +96,6 @@ export const mockDB = {
     this.getNotifications();
     this.getActivityLogs();
     
-    // Default logged in user: First registered user if any exists
-    const users = this.getUsers();
-    if (users.length > 0) {
-      if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID)) {
-        localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, users[0].id);
-      }
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
-    }
-
     // Trigger Supabase Cloud Sync
     if (isUsingSupabase()) {
       this.syncFromSupabase();
