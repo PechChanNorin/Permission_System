@@ -80,7 +80,7 @@ export const mockDB = {
   },
 
   initialize() {
-    const WAS_RESET_KEY = 'permiso_db_wipe_v10';
+    const WAS_RESET_KEY = 'permiso_db_wipe_v11';
     if (!localStorage.getItem(WAS_RESET_KEY)) {
       Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
       localStorage.setItem(WAS_RESET_KEY, 'true');
@@ -472,7 +472,11 @@ export const mockDB = {
   },
 
   setCurrentUser(userId: string) {
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, userId);
+    if (!userId) {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    } else {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, userId);
+    }
   },
 
   login(emailOrUsername: string, passwordInput: string): User | null {
