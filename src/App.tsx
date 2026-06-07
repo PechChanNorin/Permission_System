@@ -39,7 +39,7 @@ export default function App() {
     if (currentUser) {
       mockDB.logActivity(currentUser.id, 'USER_LOGOUT', 'Destroyed user authorization credentials session.');
     }
-    localStorage.removeItem('permiso_current_user_id');
+    localStorage.removeItem('permiso_current_user_v2');
     setCurrentUser(null);
   };
 
