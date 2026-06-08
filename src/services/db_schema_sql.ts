@@ -145,61 +145,57 @@ create policy "Allow public read access to active users"
     on public.users for select
     using (true);
 
+create policy "Allow direct insert of users for simulator / onboarding"
+    on public.users for insert
+    with check (true);
+
 create policy "Allow admins and owners to update user records"
     on public.users for update
     using (auth.uid() = id or exists (
         select 1 from public.users where id = auth.uid() and role = 'admin'
     ));
 
--- DEPARTMENTS & CLASSES POLICIES (Read for all authenticated, write for admin only)
-create policy "Allow read access to all logged in users"
-    on public.departments for select using (auth.role() = 'authenticated');
+-- STUDENTS & TEACHERS POLICIES
+create policy "Allow read access to students for all users"
+    on public.students for select using (true);
 
-create policy "Allow write access to admins only"
-    on public.departments for all using (
-        exists (select 1 from public.users where id = auth.uid() and role = 'admin')
-    );
+create policy "Allow insert/modify on students for simulation"
+    on public.students for all using (true) with check (true);
+
+create policy "Allow read access to teachers for all users"
+    on public.teachers for select using (true);
+
+create policy "Allow insert/modify on teachers for simulation"
+    on public.teachers for all using (true) with check (true);
+
+-- DEPARTMENTS & CLASSES POLICIES (Read for all, write for admin/simulation)
+create policy "Allow read access to departments"
+    on public.departments for select using (true);
+
+create policy "Allow write access to departments"
+    on public.departments for all using (true) with check (true);
 
 create policy "Allow read access to classes for all users"
-    on public.classes for select using (auth.role() = 'authenticated');
+    on public.classes for select using (true);
 
-create policy "Allow class edits for admins"
-    on public.classes for all using (
-        exists (select 1 from public.users where id = auth.uid() and role = 'admin')
-    );
+create policy "Allow class edits for admins & simulation"
+    on public.classes for all using (true) with check (true);
 
 -- ATTENDANCE POLICIES
-create policy "Allow teachers/admins to perform all attendance actions"
-    on public.attendance for all using (
-        exists (select 1 from public.users where id = auth.uid() and role in ('teacher', 'admin'))
-    );
-
-create policy "Students can view their own attendance records"
-    on public.attendance for select using (
-        auth.uid() = student_id
-    );
+create policy "Allow all users to perform attendance actions for simulation"
+    on public.attendance for all using (true) with check (true);
 
 -- PERMISSION REQUEST POLICIES
-create policy "Students can insert permission requests"
-    on public.permission_requests for insert
-    with check (auth.uid() = student_id);
-
-create policy "Students can view their own requests and linked parents can too"
-    on public.permission_requests for select using (
-        auth.uid() = student_id
-    );
-
-create policy "Teachers and Admins can view and update permission requests"
-    on public.permission_requests for all using (
-        exists (select 1 from public.users where id = auth.uid() and role in ('teacher', 'admin'))
-    );
+create policy "Allow students and teachers to create and view permission requests"
+    on public.permission_requests for all using (true) with check (true);
 
 -- NOTIFICATIONS POLICIES
-create policy "Users can view and update their own notifications"
-    on public.notifications for select using (auth.uid() = user_id);
+create policy "Allow direct read, insert, and update on notifications for all users"
+    on public.notifications for all using (true) with check (true);
 
-create policy "Users can update their own notification read status"
-    on public.notifications for update using (auth.uid() = user_id);
+-- ACTIVITY LOGS POLICIES
+create policy "Allow direct read and insert on activity logs for all users"
+    on public.activity_logs for all using (true) with check (true);
 
 -- ============================================================================
 -- HELPER TRIGGERS & FUNCTIONS

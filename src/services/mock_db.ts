@@ -16,6 +16,22 @@ const isUsingSupabase = (): boolean => {
   return !!(url && key);
 };
 
+// Helper to generate RFC 4122 v4 compliant UUID
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // fallback
+    }
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 // Storage keys
 const STORAGE_KEYS = {
   USERS: 'permiso_users_v2',
@@ -32,13 +48,13 @@ const STORAGE_KEYS = {
 
 // Seed ids
 const INITIAL_DEPARTMENTS: Department[] = [
-  { id: 'dept-1', department_name: 'Computer Science', description: 'Core Computing and software engineering' },
-  { id: 'dept-2', department_name: 'Language Studies', description: 'Modern linguistics & academic reading' }
+  { id: '11111111-1111-4111-a111-111111111111', department_name: 'Computer Science', description: 'Core Computing and software engineering' },
+  { id: '22222222-2222-4222-b222-222222222222', department_name: 'Language Studies', description: 'Modern linguistics & academic reading' }
 ];
 
 const INITIAL_USERS: User[] = [
   {
-    id: "admin-1",
+    id: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     fullname: "Admin",
     username: "Admin",
     email: "pechchannorin@gmail.com",
@@ -80,7 +96,7 @@ export const mockDB = {
   },
 
   initialize() {
-    const WAS_RESET_KEY = 'permiso_db_wipe_v11';
+    const WAS_RESET_KEY = 'permiso_db_wipe_v12';
     if (!localStorage.getItem(WAS_RESET_KEY)) {
       Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
       localStorage.setItem(WAS_RESET_KEY, 'true');
@@ -421,7 +437,7 @@ export const mockDB = {
   logActivity(userId: string, action: string, description: string) {
     const logs = this.getActivityLogs();
     const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
+      id: generateUUID(),
       user_id: userId,
       action,
       description,
@@ -444,7 +460,7 @@ export const mockDB = {
   notifyUser(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'alert') {
     const notifs = this.getNotifications();
     const newNotif: Notification = {
-      id: `not-${Date.now()}`,
+      id: generateUUID(),
       user_id: userId,
       title,
       message,
@@ -516,7 +532,7 @@ export const mockDB = {
       throw new Error('Email already registered inside Permiso databases');
     }
 
-    const newUserId = extra.customId || `user-${Date.now()}`;
+    const newUserId = extra.customId || generateUUID();
     const newUser: User = {
       id: newUserId,
       fullname: fullName,
@@ -540,7 +556,7 @@ export const mockDB = {
     if (role === 'student') {
       const students = this.getStudents();
       newStudent = {
-        id: `student-${Date.now()}`,
+        id: generateUUID(),
         user_id: newUserId,
         student_id: extra.student_id || `STU-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
         class_id: extra.class_id || (this.getClasses()[0]?.id || ''),
@@ -553,7 +569,7 @@ export const mockDB = {
     } else if (role === 'teacher') {
       const teachers = this.getTeachers();
       newTeacher = {
-        id: `teacher-${Date.now()}`,
+        id: generateUUID(),
         user_id: newUserId,
         department_id: extra.department_id || (this.getDepartments()[0]?.id || ''),
         specialization: extra.specialization || 'General Studies'
@@ -608,12 +624,12 @@ export const mockDB = {
     user.updated_at = new Date().toISOString();
     this.saveUsers(users);
 
-    const generatedStudentId = `student-${Date.now()}`;
+    const generatedStudentId = generateUUID();
     const formattedStudentNumber = `STU-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
     const targetClassId = this.getClasses()[0]?.id || '';
     const targetDeptId = this.getDepartments()[0]?.id || '';
 
-    const generatedTeacherId = `teacher-${Date.now()}`;
+    const generatedTeacherId = generateUUID();
 
     // Sync sub-tables
     if (newRole === 'student') {
@@ -695,7 +711,7 @@ export const mockDB = {
   }): PermissionRequest {
     const reqs = this.getPermissionRequests();
     const newReq: PermissionRequest = {
-      id: `req-${Date.now()}`,
+      id: generateUUID(),
       student_id: studentUserId,
       request_type: data.requestType,
       reason: data.reason,
@@ -777,7 +793,7 @@ export const mockDB = {
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const dateStr = d.toISOString().split('T')[0];
           const existAttIdx = attendance.findIndex(a => a.student_id === req.student_id && a.attendance_date === dateStr);
-          const generatedAttId = `att-${Date.now()}-${Math.random()}`;
+          const generatedAttId = generateUUID();
 
           if (existAttIdx !== -1) {
             attendance[existAttIdx].status = 'present';
@@ -829,7 +845,7 @@ export const mockDB = {
     
     records.forEach(rec => {
       const idx = attendance.findIndex(a => a.student_id === rec.student_id && a.attendance_date === rec.date);
-      const generatedId = `att-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
+      const generatedId = generateUUID();
 
       if (idx !== -1) {
         attendance[idx].status = rec.status;
@@ -884,7 +900,7 @@ export const mockDB = {
   createClass(className: string, departmentId: string, advisorTeacherId: string, academicYear: string, adminId: string): Class {
     const classes = this.getClasses();
     const newClass: Class = {
-      id: `class-${Date.now()}`,
+      id: generateUUID(),
       class_name: className,
       department_id: departmentId,
       advisor_teacher_id: advisorTeacherId,
@@ -910,7 +926,7 @@ export const mockDB = {
   createDepartment(deptName: string, description: string, adminId: string): Department {
     const depts = this.getDepartments();
     const newDept: Department = {
-      id: `dept-${Date.now()}`,
+      id: generateUUID(),
       department_name: deptName,
       description
     };
