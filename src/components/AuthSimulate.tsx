@@ -43,6 +43,83 @@ export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
     handleSignUp,
   } = useAuthForm({ onLoginSuccess });
 
+  // JWT Decoder for Google Credential
+  const decodeJwtResponse = (token: string) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        window.atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      console.error("JWT decoding error:", e);
+      return null;
+    }
+  };
+
+  // Callback to receive credential token from Google
+  const handleCredentialResponse = (response: any) => {
+    if (response && response.credential) {
+      const payload = decodeJwtResponse(response.credential);
+      if (payload && payload.email) {
+        if (activeTab === 'signin') {
+          setEmailInput(payload.email);
+        } else {
+          setRegEmail(payload.email);
+          if (payload.name) {
+            setRegName(payload.name);
+          }
+        }
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    let intervalId: any;
+
+    const initializeGoogle = () => {
+      const googleObj = (window as any).google;
+      if (googleObj && googleObj.accounts && googleObj.accounts.id) {
+        clearInterval(intervalId);
+        try {
+          const clientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || "1028795094970-m12bqqrff67d32vggas9tqisv3re77d8.apps.googleusercontent.com";
+          googleObj.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleCredentialResponse,
+            auto_select: false,
+          });
+
+          const btnEl = document.getElementById("google-signin-btn");
+          if (btnEl) {
+            googleObj.accounts.id.renderButton(
+              btnEl,
+              {
+                theme: "outline",
+                size: "large",
+                width: 280,
+                logo_alignment: "left",
+                text: activeTab === 'signin' ? 'signin_with' : 'signup_with'
+              }
+            );
+          }
+        } catch (err) {
+          console.error("Failed to initialize Google GSI SDK button", err);
+        }
+      }
+    };
+
+    intervalId = setInterval(initializeGoogle, 300);
+    initializeGoogle();
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [activeTab]);
+
   return (
     <div className={AuthStyles.wrapper}>
       <div className={AuthStyles.card}>
@@ -105,6 +182,14 @@ export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
               >
                 Register Identity
               </button>
+            </div>
+
+            {/* Google Sign-In Button Container */}
+            <div className="mb-5 pb-5 border-b border-dashed border-slate-100 flex flex-col items-center">
+              <label className={AuthStyles.interaction.label + " mb-2 text-center block w-full text-slate-400 text-[10px]"}>
+                Quick Autofill with Google
+              </label>
+              <div id="google-signin-btn" className="flex justify-center min-h-[40px] max-w-full"></div>
             </div>
 
             {/* Error notifications */}

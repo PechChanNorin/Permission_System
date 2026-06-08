@@ -86,6 +86,10 @@ export const mockDB = {
       localStorage.setItem(WAS_RESET_KEY, 'true');
     }
 
+    // Clean up older legacy session/user keys to prevent persistent admin log-ins in old browser tabs
+    localStorage.removeItem('permiso_current_user_id');
+    localStorage.removeItem('current_user_id');
+
     this.getUsers();
     this.getStudents();
     this.getTeachers();
