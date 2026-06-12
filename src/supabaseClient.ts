@@ -7,3 +7,19 @@ const SUPABASE_PUBLIC_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
 
+// Centralized helper to check if real Supabase configuration is present.
+// It checks both the env variables and fallback values, and ensures the key is not the default mock placeholder.
+export const isSupabaseActive = (): boolean => {
+  const url = (import.meta as any).env.VITE_SUPABASE_URL || SUPABASE_URL;
+  const key = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || SUPABASE_PUBLIC_KEY;
+  
+  return !!(
+    url && 
+    key && 
+    url !== "" && 
+    key !== "" && 
+    !key.startsWith("sb_publishable_") && 
+    url.includes("supabase.co")
+  );
+};
+

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { mockDB } from '../services/mock_db';
 import { User as UserType, Notification } from '../types';
+import { isSupabaseActive } from '../supabaseClient';
 
 interface HeaderProps {
   currentUser: UserType;
@@ -26,9 +27,7 @@ export default function Header({ currentUser, onUserChanged, openDatabaseConsole
 
   useEffect(() => {
     const checkStatus = () => {
-      const url = (import.meta as any).env.VITE_SUPABASE_URL;
-      const key = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-      if (!url || !key) {
+      if (!isSupabaseActive()) {
         setSupabaseStatus('offline');
         return;
       }

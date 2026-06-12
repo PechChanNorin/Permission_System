@@ -7,13 +7,11 @@ import {
   User, Student, Teacher, Department, Class, 
   Attendance, PermissionRequest, Notification, ActivityLog, UserRole, LeaveType
 } from '../types';
-import { supabase } from '../supabaseClient';
+import { supabase, isSupabaseActive } from '../supabaseClient';
 
 // Helper to determine if Supabase config is enabled
 const isUsingSupabase = (): boolean => {
-  const url = (import.meta as any).env.VITE_SUPABASE_URL;
-  const key = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-  return !!(url && key);
+  return isSupabaseActive();
 };
 
 // Helper to generate RFC 4122 v4 compliant UUID
