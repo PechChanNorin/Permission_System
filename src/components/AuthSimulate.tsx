@@ -86,7 +86,7 @@ export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
       if (googleObj && googleObj.accounts && googleObj.accounts.id) {
         clearInterval(intervalId);
         try {
-          const clientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || "1028795094970-m12bqqrff67d32vggas9tqisv3re77d8.apps.googleusercontent.com";
+          const clientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || "1049008832328-0sc5qlmvt8l0mds13o2836s9f5o4go82.apps.googleusercontent.com";
           googleObj.accounts.id.initialize({
             client_id: clientId,
             callback: handleCredentialResponse,
