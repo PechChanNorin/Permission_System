@@ -104,6 +104,15 @@ export const mockDB = {
     localStorage.removeItem('permiso_current_user_id');
     localStorage.removeItem('current_user_id');
 
+    // If Supabase is not active, clear any potentially stale Supabase session tokens
+    if (!isUsingSupabase()) {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+
     this.getUsers();
     this.getStudents();
     this.getTeachers();

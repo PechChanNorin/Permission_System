@@ -33,6 +33,7 @@ create table public.users (
     avatar_url text,
     phone text,
     status text not null check (status in ('active', 'inactive')) default 'active',
+    onboarding_completed boolean default false,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
