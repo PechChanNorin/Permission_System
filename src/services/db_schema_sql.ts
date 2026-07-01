@@ -221,9 +221,9 @@ end;
 $$ language plpgsql security definer;
 
 -- Trigger to create user on auth sign up
--- create trigger on_auth_user_created
---   after insert on auth.users
---   for each row execute procedure public.handle_new_user();
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 
 -- Trigger for public.users updated_at field update
 create or replace function public.handle_updated_at()
