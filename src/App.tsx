@@ -1,24 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Header } from './components/Header';
+import Header from './components/Header';
 import AuthSimulate from './components/AuthSimulate';
+import StudentView from './components/StudentView';
+import TeacherView from './components/TeacherView';
+import AdminView from './components/AdminView';
+import DBPlayground from './components/DBPlayground';
 import { supabase } from './supabaseClient';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
+  const [activeUser, setActiveUser] = useState<any>(null);
+  const [showConsole, setShowConsole] = useState(false);
 
   useEffect(() => {
     if (user) {
       supabase.from('users').select('*').eq('id', user.id).single().then(({ data }) => {
         setProfile(data);
+        if (data) {
+          const userObj = {
+            ...data,
+            avatar_url: data.avatar_url || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(data.fullname || 'user')}`
+          };
+          setActiveUser(userObj);
+        }
         setCheckingProfile(false);
       });
     } else {
       setCheckingProfile(false);
     }
   }, [user]);
+
+  // Clean up old OAuth error parameters from the address bar when logged in successfully
+  useEffect(() => {
+    if (user && profile) {
+      const url = new URL(window.location.href);
+      if (url.search || url.hash) {
+        url.search = '';
+        url.hash = '';
+        window.history.replaceState({}, document.title, url.toString());
+      }
+    }
+  }, [user, profile]);
 
   const [name, setName] = useState(user?.user_metadata?.full_name || '');
   const [phone, setPhone] = useState('');
@@ -90,7 +115,12 @@ const AppContent = () => {
                     console.error("Error saving profile:", error);
                     alert("Error saving profile: " + error.message);
                 } else {
-                    setProfile(userData);
+                    const savedUser = {
+                      ...userData,
+                      avatar_url: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(userData.fullname || 'user')}`
+                    };
+                    setProfile(savedUser);
+                    setActiveUser(savedUser);
                 }
               }}
               className="w-full bg-indigo-600 text-white p-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
@@ -105,9 +135,23 @@ const AppContent = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold">Authenticated Dashboard</h1>
+      {activeUser && (
+        <Header 
+          currentUser={activeUser} 
+          onUserChanged={(u) => setActiveUser(u)} 
+          openDatabaseConsole={() => setShowConsole(true)} 
+        />
+      )}
+      
+      <main className="flex-grow">
+        {activeUser?.role === 'student' && <StudentView currentStudentUser={activeUser} />}
+        {activeUser?.role === 'teacher' && <TeacherView currentTeacherUser={activeUser} />}
+        {activeUser?.role === 'admin' && <AdminView />}
       </main>
+
+      {showConsole && (
+        <DBPlayground onClose={() => setShowConsole(false)} />
+      )}
     </div>
   );
 };
