@@ -150,9 +150,14 @@ create policy "Allow direct insert of users for simulator / onboarding"
     on public.users for insert
     with check (true);
 
-create policy "Allow admins and owners to update user records"
+create policy "Allow users to update their own record"
     on public.users for update
-    using (auth.uid() = id or exists (
+    using (auth.uid() = id)
+    with check (auth.uid() = id);
+
+create policy "Allow admins to update any record"
+    on public.users for update
+    using (exists (
         select 1 from public.users where id = auth.uid() and role = 'admin'
     ));
 

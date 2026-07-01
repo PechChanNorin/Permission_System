@@ -58,13 +58,36 @@ const AppContent = () => {
                   email: user.email, 
                   fullname: name,
                   phone: phone,
-                  role: role,
+                  role: role as any,
                   onboarding_completed: true, 
                   status: 'active'
                 };
-                const { error } = await supabase.from('users').upsert(userData);
+                
+                console.log("Attempting to save profile...", userData);
+                
+                // 1. Try pure insert first (permissive RLS insert policy applies, no upsert-related UPDATE RLS checks)
+                let { error } = await supabase
+                  .from('users')
+                  .insert(userData);
+                  
+                // 2. If it fails because the row already exists (duplicate key error), perform a clean update
+                if (error && (error.code === '23505' || error.message?.toLowerCase().includes('duplicate') || error.message?.toLowerCase().includes('already exists'))) {
+                  console.log("Profile already exists. Performing clean update instead.");
+                  const { error: updateError } = await supabase
+                    .from('users')
+                    .update({
+                      fullname: name,
+                      phone: phone,
+                      role: role as any,
+                      onboarding_completed: true,
+                      status: 'active'
+                    })
+                    .eq('id', user.id);
+                  error = updateError;
+                }
+                
                 if (error) {
-                    console.error("Error upserting profile:", error);
+                    console.error("Error saving profile:", error);
                     alert("Error saving profile: " + error.message);
                 } else {
                     setProfile(userData);
