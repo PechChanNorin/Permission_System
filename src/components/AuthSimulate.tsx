@@ -16,15 +16,9 @@ interface AuthSimulateProps {
 export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
   const { signInWithGoogle } = useAuth();
   
-  // State for tabs
-  const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
-  
   // Form inputs
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<'student' | 'teacher'>('student');
   
   // Feedback states
   const [loading, setLoading] = useState(false);
@@ -41,50 +35,48 @@ export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
       return;
     }
 
-    if (activeTab === 'signup' && !fullName) {
-      setErrorMsg('Please fill in your full name.');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      if (activeTab === 'signin') {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        onLoginSuccess();
-      } else {
-        // Sign up
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              fullname: fullName,
-              full_name: fullName,
-              phone: phone,
-              role: role,
-            }
-          }
-        });
-        if (error) throw error;
+      // 1. Try to sign in first
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        // If automatic email confirmation is on, we might need a notice, but usually in sandbox they get signed in automatically
-        if (data.session) {
-          setSuccessMsg('Registration successful!');
-          setTimeout(() => {
-            onLoginSuccess();
-          }, 1000);
-        } else {
-          setSuccessMsg('Registration successful! Please check your email inbox to verify your account.');
-          setActiveTab('signin');
+      if (!signInError) {
+        onLoginSuccess();
+        return;
+      }
+
+      // If sign in fails, we attempt to automatically sign up
+      console.log('Sign in failed, attempting auto-registration...', signInError.message);
+      
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) {
+        // If sign-up also fails, throw the sign-up error or the sign-in error
+        if (signUpError.message?.toLowerCase().includes('already registered') || 
+            signUpError.message?.toLowerCase().includes('already exists')) {
+          throw new Error('Invalid login credentials (incorrect password).');
         }
+        throw signUpError;
+      }
+
+      // Registration successful
+      if (signUpData.session) {
+        setSuccessMsg('Registration successful! Logging you in...');
+        setTimeout(() => {
+          onLoginSuccess();
+        }, 1200);
+      } else {
+        setSuccessMsg('Registration successful! Please check your email to verify your account.');
       }
     } catch (err: any) {
-      console.error('Authentication exception:', err);
+      console.error('Authentication error:', err);
       setErrorMsg(err.message || 'An unexpected authentication error occurred.');
     } finally {
       setLoading(false);
@@ -142,30 +134,9 @@ export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
         {/* Right interaction form */}
         <div className={AuthStyles.interaction.panel}>
           
-          {/* Interactive Tab Selectors */}
-          <div className={AuthStyles.interaction.tabContainer}>
-            <button
-              type="button"
-              className={activeTab === 'signin' ? AuthStyles.interaction.tabButtonActive : AuthStyles.interaction.tabButtonInactive}
-              onClick={() => {
-                setActiveTab('signin');
-                setErrorMsg('');
-                setSuccessMsg('');
-              }}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              className={activeTab === 'signup' ? AuthStyles.interaction.tabButtonActive : AuthStyles.interaction.tabButtonInactive}
-              onClick={() => {
-                setActiveTab('signup');
-                setErrorMsg('');
-                setSuccessMsg('');
-              }}
-            >
-              Register
-            </button>
+          <div className="mb-8">
+            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Welcome to Permiso</h2>
+            <p className="text-sm text-slate-500 mt-2">Sign in or enter a new email to register a clean account.</p>
           </div>
 
           {/* Error Banner */}
@@ -185,50 +156,6 @@ export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
           )}
 
           <form onSubmit={handleAuth} className={AuthStyles.interaction.formContainer}>
-            {activeTab === 'signup' && (
-              <>
-                <div className={AuthStyles.interaction.fieldGroup}>
-                  <label className={AuthStyles.interaction.label}>Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    className={AuthStyles.interaction.input}
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. John Doe"
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className={AuthStyles.interaction.gridTwoCols}>
-                  <div className={AuthStyles.interaction.fieldGroup}>
-                    <label className={AuthStyles.interaction.label}>Role</label>
-                    <select
-                      className={AuthStyles.interaction.select}
-                      value={role}
-                      onChange={(e) => setRole(e.target.value as any)}
-                      disabled={loading}
-                    >
-                      <option value="student">Student</option>
-                      <option value="teacher">Teacher</option>
-                    </select>
-                  </div>
-
-                  <div className={AuthStyles.interaction.fieldGroup}>
-                    <label className={AuthStyles.interaction.label}>Phone Number</label>
-                    <input
-                      type="tel"
-                      className={AuthStyles.interaction.input}
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="e.g. 012345678"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
             <div className={AuthStyles.interaction.fieldGroup}>
               <label className={AuthStyles.interaction.label}>Email Address</label>
               <input
@@ -265,15 +192,10 @@ export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Processing...
                 </>
-              ) : activeTab === 'signin' ? (
-                <>
-                  Sign In
-                  <LogIn className="w-4 h-4" />
-                </>
               ) : (
                 <>
-                  Register Account
-                  <UserPlus className="w-4 h-4" />
+                  Sign In / Register
+                  <LogIn className="w-4 h-4" />
                 </>
               )}
             </button>
