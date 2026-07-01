@@ -4,9 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { LogIn, Check } from 'lucide-react';
+import { LogIn, Check, UserPlus, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AuthStyles } from './AuthStyles';
+import { supabase } from '../supabaseClient';
 
 interface AuthSimulateProps {
   onLoginSuccess: () => void;
@@ -14,17 +15,92 @@ interface AuthSimulateProps {
 
 export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
   const { signInWithGoogle } = useAuth();
+  
+  // State for tabs
+  const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
+  
+  // Form inputs
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
+  
+  // Feedback states
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login:', email, password);
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    if (!email || !password) {
+      setErrorMsg('Please fill in both email and password.');
+      return;
+    }
+
+    if (activeTab === 'signup' && !fullName) {
+      setErrorMsg('Please fill in your full name.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (activeTab === 'signin') {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        onLoginSuccess();
+      } else {
+        // Sign up
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              fullname: fullName,
+              full_name: fullName,
+              phone: phone,
+              role: role,
+            }
+          }
+        });
+        if (error) throw error;
+
+        // If automatic email confirmation is on, we might need a notice, but usually in sandbox they get signed in automatically
+        if (data.session) {
+          setSuccessMsg('Registration successful!');
+          setTimeout(() => {
+            onLoginSuccess();
+          }, 1000);
+        } else {
+          setSuccessMsg('Registration successful! Please check your email inbox to verify your account.');
+          setActiveTab('signin');
+        }
+      }
+    } catch (err: any) {
+      console.error('Authentication exception:', err);
+      setErrorMsg(err.message || 'An unexpected authentication error occurred.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
-    await signInWithGoogle();
-    onLoginSuccess();
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      await signInWithGoogle();
+      onLoginSuccess();
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setErrorMsg(err.message || 'Failed to initialize Google login.');
+    }
   };
 
   return (
@@ -65,38 +141,141 @@ export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
 
         {/* Right interaction form */}
         <div className={AuthStyles.interaction.panel}>
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Welcome back</h2>
-            <p className="text-sm text-slate-500 mt-2">Sign in or create an account to get started.</p>
+          
+          {/* Interactive Tab Selectors */}
+          <div className={AuthStyles.interaction.tabContainer}>
+            <button
+              type="button"
+              className={activeTab === 'signin' ? AuthStyles.interaction.tabButtonActive : AuthStyles.interaction.tabButtonInactive}
+              onClick={() => {
+                setActiveTab('signin');
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              className={activeTab === 'signup' ? AuthStyles.interaction.tabButtonActive : AuthStyles.interaction.tabButtonInactive}
+              onClick={() => {
+                setActiveTab('signup');
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+            >
+              Register
+            </button>
           </div>
 
-          <form onSubmit={handleLogin} className={AuthStyles.interaction.formContainer}>
+          {/* Error Banner */}
+          {errorMsg && (
+            <div className={AuthStyles.interaction.errorBanner}>
+              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Success Banner */}
+          {successMsg && (
+            <div className="p-4 bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-bold rounded-2xl mb-6 flex items-center gap-3">
+              <Check className="w-5 h-5 text-emerald-500 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleAuth} className={AuthStyles.interaction.formContainer}>
+            {activeTab === 'signup' && (
+              <>
+                <div className={AuthStyles.interaction.fieldGroup}>
+                  <label className={AuthStyles.interaction.label}>Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    className={AuthStyles.interaction.input}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="e.g. John Doe"
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className={AuthStyles.interaction.gridTwoCols}>
+                  <div className={AuthStyles.interaction.fieldGroup}>
+                    <label className={AuthStyles.interaction.label}>Role</label>
+                    <select
+                      className={AuthStyles.interaction.select}
+                      value={role}
+                      onChange={(e) => setRole(e.target.value as any)}
+                      disabled={loading}
+                    >
+                      <option value="student">Student</option>
+                      <option value="teacher">Teacher</option>
+                    </select>
+                  </div>
+
+                  <div className={AuthStyles.interaction.fieldGroup}>
+                    <label className={AuthStyles.interaction.label}>Phone Number</label>
+                    <input
+                      type="tel"
+                      className={AuthStyles.interaction.input}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="e.g. 012345678"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
             <div className={AuthStyles.interaction.fieldGroup}>
-              <label className={AuthStyles.interaction.label}>Email or Phone</label>
+              <label className={AuthStyles.interaction.label}>Email Address</label>
               <input
-                type="text"
+                type="email"
+                required
                 className={AuthStyles.interaction.input}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@university.edu"
+                disabled={loading}
               />
             </div>
+
             <div className={AuthStyles.interaction.fieldGroup}>
               <label className={AuthStyles.interaction.label}>Password</label>
               <input
                 type="password"
+                required
                 className={AuthStyles.interaction.inputMono}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                disabled={loading}
               />
             </div>
+
             <button
               type="submit"
+              disabled={loading}
               className={AuthStyles.interaction.submitButton}
             >
-              Sign In / Register
-              <LogIn className="w-4 h-4" />
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Processing...
+                </>
+              ) : activeTab === 'signin' ? (
+                <>
+                  Sign In
+                  <LogIn className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  Register Account
+                  <UserPlus className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 
@@ -108,7 +287,8 @@ export default function AuthSimulate({ onLoginSuccess }: AuthSimulateProps) {
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full bg-white border border-slate-200 p-3.5 rounded-2xl font-bold text-slate-700 flex items-center justify-center gap-3 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-[0.98]"
+            disabled={loading}
+            className="w-full bg-white border border-slate-200 p-3.5 rounded-2xl font-bold text-slate-700 flex items-center justify-center gap-3 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
