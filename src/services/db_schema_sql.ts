@@ -210,18 +210,42 @@ create policy "Allow direct read and insert on activity logs for all users"
 -- Function to handle public.users registration on auth.users sign-up
 create or replace function public.handle_new_user()
 returns trigger as $$
+declare
+  user_role_str text;
+  final_role user_role;
 begin
+  -- Safely extract and check role
+  user_role_str := lower(coalesce(new.raw_user_meta_data->>'role', ''));
+  if user_role_str = 'admin' then
+    final_role := 'admin'::user_role;
+  elseif user_role_str = 'teacher' then
+    final_role := 'teacher'::user_role;
+  else
+    final_role := 'student'::user_role;
+  end if;
+
   insert into public.users (id, fullname, email, role, avatar_url, phone, status)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'fullname', 'New User'),
+    coalesce(
+      new.raw_user_meta_data->>'fullname',
+      new.raw_user_meta_data->>'full_name',
+      'New User'
+    ),
     new.email,
-    coalesce((new.raw_user_meta_data->>'role')::user_role, 'student'::user_role),
+    final_role,
     new.raw_user_meta_data->>'avatar_url',
     new.raw_user_meta_data->>'phone',
     'active'
-  );
+  )
+  on conflict (id) do update set
+    fullname = excluded.fullname,
+    email = excluded.email;
   return new;
+exception
+  when others then
+    -- Catch all exceptions so auth sign up NEVER fails
+    return new;
 end;
 $$ language plpgsql security definer;
 

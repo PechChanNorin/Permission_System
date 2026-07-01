@@ -9,7 +9,7 @@ import DBPlayground from './components/DBPlayground';
 import { supabase } from './supabaseClient';
 
 const AppContent = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [activeUser, setActiveUser] = useState<any>(null);
@@ -113,7 +113,16 @@ const AppContent = () => {
                 
                 if (error) {
                     console.error("Error saving profile:", error);
-                    alert("Error saving profile: " + error.message);
+                    if (error.message?.includes('violates foreign key constraint "users_id_fkey"') || error.message?.includes('users_id_fkey')) {
+                        alert(
+                          "Database Alignment Required:\n\n" +
+                          "Your current login session ID does not exist in your database's Auth registry.\n\n" +
+                          "This usually happens when you recently reset or re-created your database tables while keeping your browser's old login session cookie/token active.\n\n" +
+                          "To fix this, please click 'Log Out / Restart Session' below, refresh the page, and sign in again to register your account cleanly!"
+                        );
+                    } else {
+                        alert("Error saving profile: " + error.message);
+                    }
                 } else {
                     const savedUser = {
                       ...userData,
@@ -126,6 +135,13 @@ const AppContent = () => {
               className="w-full bg-indigo-600 text-white p-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
             >
               Complete Registration
+            </button>
+            
+            <button
+              onClick={() => signOut()}
+              className="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 p-2.5 rounded-lg text-sm font-semibold transition-colors"
+            >
+              Log Out / Restart Session
             </button>
           </div>
         </div>
