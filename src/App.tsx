@@ -62,12 +62,13 @@ const AppContent = () => {
                   onboarding_completed: true, 
                   status: 'active'
                 };
-                if (profile) {
-                  await supabase.from('users').update(userData).eq('id', user.id);
+                const { error } = await supabase.from('users').upsert(userData);
+                if (error) {
+                    console.error("Error upserting profile:", error);
+                    alert("Error saving profile: " + error.message);
                 } else {
-                  await supabase.from('users').insert(userData);
+                    setProfile(userData);
                 }
-                setProfile(userData);
               }}
               className="w-full bg-indigo-600 text-white p-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors"
             >
