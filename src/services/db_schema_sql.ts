@@ -10,11 +10,22 @@ export const SUPABASE_SQL_SCHEMA = `-- =========================================
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
--- Create ENUM types for status and roles
-create type user_role as enum ('admin', 'teacher', 'student');
-create type attendance_status as enum ('present', 'absent', 'late');
-create type leave_type as enum ('sickness', 'compassionate', 'family_activity', 'school_duty', 'other');
-create type leave_status as enum ('pending', 'approved', 'rejected');
+-- Create ENUM types for status and roles safely (avoid failing if they already exist)
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'user_role') then
+    create type user_role as enum ('admin', 'teacher', 'student');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'attendance_status') then
+    create type attendance_status as enum ('present', 'absent', 'late');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'leave_type') then
+    create type leave_type as enum ('sickness', 'compassionate', 'family_activity', 'school_duty', 'other');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'leave_status') then
+    create type leave_status as enum ('pending', 'approved', 'rejected');
+  end if;
+end$$;
 
 -- 1. DEPARTMENTS TABLE
 create table public.departments (
@@ -250,6 +261,7 @@ end;
 $$ language plpgsql security definer;
 
 -- Trigger to create user on auth sign up
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
@@ -263,6 +275,7 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists update_users_updated_at on public.users;
 create trigger update_users_updated_at
   before update on public.users
   for each row execute procedure public.handle_updated_at();

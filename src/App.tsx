@@ -113,13 +113,22 @@ const AppContent = () => {
                 
                 if (error) {
                     console.error("Error saving profile:", error);
-                    if (error.message?.includes('violates foreign key constraint "users_id_fkey"') || error.message?.includes('users_id_fkey')) {
+                    const isFkeyError = error.message?.includes('violates foreign key constraint "users_id_fkey"') || 
+                                        error.message?.includes('users_id_fkey') || 
+                                        error.code === '23503';
+                                        
+                    if (isFkeyError) {
                         alert(
-                          "Database Alignment Required:\n\n" +
-                          "Your current login session ID does not exist in your database's Auth registry.\n\n" +
-                          "This usually happens when you recently reset or re-created your database tables while keeping your browser's old login session cookie/token active.\n\n" +
-                          "To fix this, please click 'Log Out / Restart Session' below, refresh the page, and sign in again to register your account cleanly!"
+                          "Database Sync Error detected!\n\n" +
+                          "Your browser's session is out of sync with your new database tables (your account was likely deleted or database tables were recreated).\n\n" +
+                          "We will now sign you out and refresh the page so you can register a clean, fresh account."
                         );
+                        await signOut();
+                        try {
+                          localStorage.clear();
+                          sessionStorage.clear();
+                        } catch (e) {}
+                        window.location.reload();
                     } else {
                         alert("Error saving profile: " + error.message);
                     }
